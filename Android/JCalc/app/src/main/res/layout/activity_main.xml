@@ -304,6 +304,7 @@
             android:layout_height="100dp"
             android:fontFamily="casual"
             android:gravity="right"
+            android:textAlignment="textEnd"
             android:textColor="@color/colorPrimary"
             android:textSize="72sp" />
 
