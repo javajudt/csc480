@@ -1,4 +1,4 @@
-package com.jordanjudt.jcalc;
+package com.machone.jcalc;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
