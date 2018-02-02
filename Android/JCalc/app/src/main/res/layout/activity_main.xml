@@ -212,7 +212,7 @@
                 android:layout_weight="1"
                 android:background="@android:color/holo_green_light"
                 android:fontFamily="casual"
-                android:text="-"
+                android:text="−"
                 android:textSize="30sp" />
 
         </LinearLayout>

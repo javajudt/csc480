@@ -1,5 +1,6 @@
 package com.machone.jcalc;
 
+import android.content.Context;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
@@ -8,241 +9,163 @@ import android.widget.HorizontalScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
-import java.util.ArrayList;
-import java.util.Stack;
-
 public class MainActivity extends AppCompatActivity {
+    private Context _context;
     private String expression = "";
-    private boolean decimal = false;
+    private String currentOperand = "";
+    private char lastChar = '\0';
+    private boolean expressionIsEquals = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        _context = getBaseContext();
 
         registerClickListeners();
     }
 
     private void registerClickListeners() {
-        View.OnClickListener numberListener = new View.OnClickListener() {
-            public void onClick(View v) {
-                expression += ((Button) v).getText().toString();
-                int length = expression.length();
-                if (length == 2 && expression.startsWith("0"))
-                    expression = expression.substring(1, length);
-                ((TextView) findViewById(R.id.input)).setText(expression);
+        View.OnClickListener buttonListener = new View.OnClickListener(){
+            public void onClick(View v){
+                String buttonText = ((Button)v).getText().toString();
 
-                //findViewById(R.id.inputScroll).scrollTo(findViewById(R.id.input).getRight()+50, 0);
-                HorizontalScrollView inputScroll = (HorizontalScrollView) findViewById(R.id.inputScroll);
-                inputScroll.setScrollX(inputScroll.getRight());
+                if (expressionIsEquals && buttonText.matches("[^0-9.]"))
+                    expressionIsEquals = false;
 
-            }
-        };
-
-        View.OnClickListener operatorListener = new View.OnClickListener() {
-            public void onClick(View v) {
-                int lastIdx = expression.length() - 1;
-                if (lastIdx < 0) return;
-
-                char last = expression.charAt(lastIdx);
-                String operator = ((Button) v).getText().toString();
-
-                if (last == '.')
-                    expression += "0";
-                else if (last == '+' || last == '-' || last == '×' || last == '÷' || last == '(')
-                    expression = expression.substring(0, lastIdx);
-
-                expression += operator;
-                decimal = false;
-                ((TextView) findViewById(R.id.input)).setText(expression);
-            }
-        };
-
-        View.OnClickListener parenthesisListener = new View.OnClickListener() {
-            public void onClick(View v) {
-                int lastIdx = expression.length() - 1;
-                char last = '\0';
-                if (lastIdx >= 0) last = expression.charAt(lastIdx);
-                String parenthesis = ((Button) v).getText().toString();
-
-                if ((lastIdx == -1 && parenthesis.equals(")")) || (parenthesis.equals(")") && last == '('))
-                    return;
-
-                expression += parenthesis;
-                decimal = false;
-                ((TextView) findViewById(R.id.input)).setText(expression);
-            }
-        };
-
-        findViewById(R.id.zero).setOnClickListener(numberListener);
-        findViewById(R.id.one).setOnClickListener(numberListener);
-        findViewById(R.id.two).setOnClickListener(numberListener);
-        findViewById(R.id.three).setOnClickListener(numberListener);
-        findViewById(R.id.four).setOnClickListener(numberListener);
-        findViewById(R.id.five).setOnClickListener(numberListener);
-        findViewById(R.id.six).setOnClickListener(numberListener);
-        findViewById(R.id.seven).setOnClickListener(numberListener);
-        findViewById(R.id.eight).setOnClickListener(numberListener);
-        findViewById(R.id.nine).setOnClickListener(numberListener);
-
-        findViewById(R.id.plusBtn).setOnClickListener(operatorListener);
-        findViewById(R.id.minusBtn).setOnClickListener(operatorListener);
-        findViewById(R.id.multBtn).setOnClickListener(operatorListener);
-        findViewById(R.id.divBtn).setOnClickListener(operatorListener);
-        findViewById(R.id.leftParenthBtn).setOnClickListener(parenthesisListener);
-        findViewById(R.id.rightParenthBtn).setOnClickListener(parenthesisListener);
-
-        findViewById(R.id.decimalBtn).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (decimal) return;
-                int length = expression.length();
-                if (length < 1 || expression.charAt(length - 1) < '0' || expression.charAt(length - 1) > '9')
-                    expression += "0";
-
-                expression += ".";
-                decimal = true;
-                ((TextView) findViewById(R.id.input)).setText(expression);
-            }
-        });
-
-        findViewById(R.id.eqBtn).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                if (expression.length() < 1) return;
-                char last = expression.charAt(expression.length() - 1);
-                if (last == '.')
-                    expression += '0';
-                if (last == '+' || last == '-' || last == '×' || last == '÷' || last == '(') {
-                    Toast.makeText(MainActivity.this, "Invalid expression", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                String result;
-                try {
-                    result = String.valueOf(evaluateExpression());
-                } catch (IllegalArgumentException ex) {
-                    result = "ERR";
-                    Toast.makeText(MainActivity.this, "Internal error: " + ex.getMessage(), Toast.LENGTH_SHORT).show();
-                } catch (ArithmeticException ex) {
-                    result = "UNDEF";
-                    Toast.makeText(MainActivity.this, "Cannot divide by 0", Toast.LENGTH_SHORT).show();
-                }
-
-                decimal = false;
-                expression = "";
-
-                if (result.endsWith(".0"))
-                    result = result.substring(0, result.length() - 2);
-                ((TextView) findViewById(R.id.input)).setText(result);
-            }
-        });
-
-        findViewById(R.id.clearBtn).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                decimal = false;
-                expression = "";
-                ((TextView) findViewById(R.id.input)).setText(expression);
-            }
-        });
-
-        findViewById(R.id.clearEntryBtn).setOnClickListener(new View.OnClickListener() {
-            public void onClick(View v) {
-                int i = expression.length() - 1;
-                if (i < 1) return;
-
-                int plus = expression.lastIndexOf('+');
-                int minus = expression.lastIndexOf('-');
-                int mult = expression.lastIndexOf('×');
-                int div = expression.lastIndexOf('÷');
-
-                if (i == plus || i == minus || i == mult || i == div)
-                    expression = expression.substring(0, i);
-                else {
-                    if (plus > minus && plus > mult && plus > div)
-                        expression = expression.substring(0, plus + 1);
-                    else if (minus > plus && minus > mult && minus > div)
-                        expression = expression.substring(0, minus + 1);
-                    else if (mult > plus && mult > minus && mult > div)
-                        expression = expression.substring(0, mult + 1);
-                    else if (div > plus && div > minus && div > mult)
-                        expression = expression.substring(0, div + 1);
-                    else
+                // Handle numbers/decimal
+                if (buttonText.matches("[0-9.]")){
+                    if (expressionIsEquals){
                         expression = "";
+                        lastChar = '\0';
+                        currentOperand = "";
+                    }
+                    if (currentOperand.equals("0") && !buttonText.equals(".")) {
+                        currentOperand = "";
+                        expression = "";
+                    }
+                    if (buttonText.equals(".")){
+                        if (currentOperand.isEmpty() || currentOperand.equals(Operators.NEGATIVE)) {
+                            currentOperand += "0";
+                            expression += "0";
+                        }
+                        else if (currentOperand.contains(".")) return;
+                    }
+                    currentOperand += buttonText;
                 }
-                decimal = false;
-                ((TextView) findViewById(R.id.input)).setText(expression);
-            }
-        });
-    }
+                // Handle non-minus operators
+                else if (buttonText.matches("[" + Operators.PLUS +
+                        Operators.MULTIPLY +
+                        Operators.DIVIDE + "]")){
+                    if (lastChar == '\0') return; // Must enter a number first
+                    // Last character is already an operator, negative, or decimal
+                    if ((lastChar < '0' || lastChar > '9') && lastChar != ')')
+                        expression = expression.substring(0, expression.length() - 1);
 
-    private float evaluateExpression() {
-        ArrayList<String> postfix = convertToPostfix();
-        Stack<String> calcStack = new Stack<String>();
-
-        for (String token : postfix) {
-            char charToken = token.charAt(0);
-            if (charToken >= '0' && charToken <= '9')
-                calcStack.push(token);
-            else {
-                float num2 = Float.parseFloat(calcStack.pop());
-                float num1 = Float.parseFloat(calcStack.pop());
-                float result;
-                if (charToken == '+')
-                    result = num1 + num2;
-                else if (charToken == '-')
-                    result = num1 - num2;
-                else if (charToken == '×')
-                    result = num1 * num2;
-                else if (charToken == '÷') {
-                    if (num2 == 0)
-                        throw new ArithmeticException("Cannot divide by 0");
-                    result = num1 / num2;
-                } else
-                    throw new IllegalArgumentException("Unknown token: " + token);
-                calcStack.push(String.valueOf(result));
-            }
-        }
-        return Float.parseFloat(calcStack.pop());
-    }
-
-    private ArrayList<String> convertToPostfix() {
-        Stack<Character> opStack = new Stack<Character>();
-        ArrayList<String> postfix = new ArrayList<String>();
-
-        char[] split = expression.toCharArray();
-        char prevChar = '\0';
-        for (char c : split) {
-            if ((c >= '0' && c <= '9') || c == '.') {
-                String num = "";
-                if ((prevChar >= '0' && prevChar <= '9') || prevChar == '.')
-                    num = postfix.remove(postfix.size() - 1);
-
-                postfix.add(num + String.valueOf(c));
-            } else if (c == '(') {
-                opStack.push(c);
-            } else if (c == ')') {
-                char pop = opStack.pop();
-                while (pop != '(') {
-                    postfix.add(String.valueOf(pop));
-                    pop = opStack.pop();
+                    currentOperand = "";
                 }
-            } else {
-                if (!opStack.isEmpty()) {
-                    char prev = opStack.peek();
-                    while (((c == '+' || c == '-') && prev != '(')
-                            || ((c == '×' || c == '÷') && (prev == '×' || prev == '÷'))) {
-                        postfix.add(String.valueOf(opStack.pop()));
-                        if (opStack.isEmpty()) break;
-                        prev = opStack.peek();
+                // Handle minus/negative
+                else if (buttonText.matches("[" + Operators.MINUS +
+                        Operators.NEGATIVE + "]")){
+                    if (currentOperand.isEmpty() && lastChar != ')') { // negative intent
+                        buttonText = String.valueOf(Operators.NEGATIVE);
+                        currentOperand += buttonText;
+                    }
+                    else { // minus intent
+                        if (lastChar == '.')
+                            expression = expression.substring(0, expression.length() - 1);
+                        buttonText = String.valueOf(Operators.MINUS);
+                        currentOperand = "";
                     }
                 }
-                opStack.push(c);
-            }
-            prevChar = c;
-        }
-        while (!opStack.isEmpty()) {
-            postfix.add(String.valueOf(opStack.pop()));
-        }
+                // Handle left parenthesis
+                else if (buttonText.equals("(")){
+                    if (currentOperand.equals(Operators.NEGATIVE))
+                        return;
+                    if (lastChar == '.')
+                        expression = expression.substring(0, expression.length() - 1);
+                    currentOperand = "";
+                }
+                // Handle right parenthesis
+                else if (buttonText.equals(")")){
+                    if ((currentOperand.isEmpty() && lastChar != ')') ||
+                            currentOperand.equals(Operators.NEGATIVE))
+                        return;
+                    if (lastChar == '.')
+                        expression = expression.substring(0, expression.length() - 1);
+                    currentOperand = "";
+                }
+                // Handle clear all
+                else if (buttonText.equals("C")){
+                    currentOperand = "";
+                    lastChar = '\0';
+                    expression = "";
+                }
+                // Handle clear entry
+                else if (buttonText.equals("CE")){
+                    if (currentOperand.isEmpty()) return;
+                    expression = expression.substring(0, expression.lastIndexOf(currentOperand));
+                    currentOperand = "";
+                    lastChar = expression.charAt(expression.length() - 1);
+                }
+                // Handle equals
+                else if (buttonText.equals("=")){
+                    if (lastChar == '\0' || currentOperand.equals(Operators.NEGATIVE)) return;
+                    else if (lastChar == '.')
+                        expression = expression.substring(0, expression.length() - 1);
+                    if ((lastChar < '0' || lastChar > '9') && lastChar != ')') {
+                        Toast.makeText(MainActivity.this, "Invalid expression", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
 
-        return postfix;
+                    try {
+                        expression = String.valueOf(Calculator.evaluateExpression(expression));
+                    } catch (ArithmeticException ex) {
+                        expression = "UNDEF";
+                        currentOperand = "";
+                        lastChar = '\0';
+                        Toast.makeText(MainActivity.this, "Cannot divide by 0", Toast.LENGTH_SHORT).show();
+                    }
+
+                    if (expression.endsWith(".0"))
+                        expression = expression.substring(0, expression.length() - 2);
+                    currentOperand = expression;
+                    lastChar = expression.charAt(expression.length() - 1);
+                }
+
+                if (!buttonText.equals("=") && !buttonText.equals("C") && !buttonText.equals("CE")) {
+                    lastChar = buttonText.charAt(0);
+                    expression += buttonText;
+                }
+
+                ((TextView) findViewById(R.id.input)).setText(expression);
+                HorizontalScrollView inputScroll = (HorizontalScrollView) findViewById(R.id.inputScroll);
+                inputScroll.setScrollX(inputScroll.getRight());
+            }
+        };
+
+        findViewById(R.id.zero).setOnClickListener(buttonListener);
+        findViewById(R.id.one).setOnClickListener(buttonListener);
+        findViewById(R.id.two).setOnClickListener(buttonListener);
+        findViewById(R.id.three).setOnClickListener(buttonListener);
+        findViewById(R.id.four).setOnClickListener(buttonListener);
+        findViewById(R.id.five).setOnClickListener(buttonListener);
+        findViewById(R.id.six).setOnClickListener(buttonListener);
+        findViewById(R.id.seven).setOnClickListener(buttonListener);
+        findViewById(R.id.eight).setOnClickListener(buttonListener);
+        findViewById(R.id.nine).setOnClickListener(buttonListener);
+        findViewById(R.id.decimalBtn).setOnClickListener(buttonListener);
+
+        findViewById(R.id.plusBtn).setOnClickListener(buttonListener);
+        findViewById(R.id.minusBtn).setOnClickListener(buttonListener);
+        findViewById(R.id.multBtn).setOnClickListener(buttonListener);
+        findViewById(R.id.divBtn).setOnClickListener(buttonListener);
+        findViewById(R.id.rightParenthBtn).setOnClickListener(buttonListener);
+
+        findViewById(R.id.leftParenthBtn).setOnClickListener(buttonListener);
+        findViewById(R.id.rightParenthBtn).setOnClickListener(buttonListener);
+
+        findViewById(R.id.clearBtn).setOnClickListener(buttonListener);
+        findViewById(R.id.clearEntryBtn).setOnClickListener(buttonListener);
     }
 }
