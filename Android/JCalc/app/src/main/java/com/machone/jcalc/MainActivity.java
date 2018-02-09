@@ -1,8 +1,13 @@
 package com.machone.jcalc;
 
+import android.app.Activity;
 import android.content.Context;
+import android.graphics.Point;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.text.method.ScrollingMovementMethod;
+import android.view.Display;
 import android.view.View;
 import android.widget.Button;
 import android.widget.HorizontalScrollView;
@@ -10,7 +15,6 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 public class MainActivity extends AppCompatActivity {
-    private Context _context;
     private String expression = "";
     private String currentOperand = "";
     private char lastChar = '\0';
@@ -20,7 +24,6 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        _context = getBaseContext();
 
         registerClickListeners();
     }
@@ -30,22 +33,20 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View v){
                 String buttonText = ((Button)v).getText().toString();
 
-                if (expressionIsEquals && buttonText.matches("[^0-9.]"))
+                if (expressionIsEquals && buttonText.matches("[^0-9.()]+")) {
+                    if (currentOperand.equals("UNDEF") && !buttonText.equals("C") && !buttonText.equals("CE")) return;
                     expressionIsEquals = false;
+                }
 
                 // Handle numbers/decimal
                 if (buttonText.matches("[0-9.]")){
-                    if (expressionIsEquals){
-                        expression = "";
-                        lastChar = '\0';
-                        currentOperand = "";
-                    }
+                    if (expressionIsEquals) clear();
                     if (currentOperand.equals("0") && !buttonText.equals(".")) {
                         currentOperand = "";
-                        expression = "";
+                        expression = expression.substring(0, expression.length() - 1);
                     }
                     if (buttonText.equals(".")){
-                        if (currentOperand.isEmpty() || currentOperand.equals(Operators.NEGATIVE)) {
+                        if (currentOperand.isEmpty() || currentOperand.equals(String.valueOf(Operators.NEGATIVE))) {
                             currentOperand += "0";
                             expression += "0";
                         }
@@ -57,7 +58,7 @@ public class MainActivity extends AppCompatActivity {
                 else if (buttonText.matches("[" + Operators.PLUS +
                         Operators.MULTIPLY +
                         Operators.DIVIDE + "]")){
-                    if (lastChar == '\0') return; // Must enter a number first
+                    if (lastChar == '\0' || currentOperand.equals(String.valueOf(Operators.NEGATIVE)) || lastChar == '(') return; // Must enter a number first
                     // Last character is already an operator, negative, or decimal
                     if ((lastChar < '0' || lastChar > '9') && lastChar != ')')
                         expression = expression.substring(0, expression.length() - 1);
@@ -72,6 +73,7 @@ public class MainActivity extends AppCompatActivity {
                         currentOperand += buttonText;
                     }
                     else { // minus intent
+                        if (currentOperand.equals(String.valueOf(Operators.NEGATIVE))) return;
                         if (lastChar == '.')
                             expression = expression.substring(0, expression.length() - 1);
                         buttonText = String.valueOf(Operators.MINUS);
@@ -80,8 +82,7 @@ public class MainActivity extends AppCompatActivity {
                 }
                 // Handle left parenthesis
                 else if (buttonText.equals("(")){
-                    if (currentOperand.equals(Operators.NEGATIVE))
-                        return;
+                    if (expressionIsEquals) clear();
                     if (lastChar == '.')
                         expression = expression.substring(0, expression.length() - 1);
                     currentOperand = "";
@@ -89,48 +90,59 @@ public class MainActivity extends AppCompatActivity {
                 // Handle right parenthesis
                 else if (buttonText.equals(")")){
                     if ((currentOperand.isEmpty() && lastChar != ')') ||
-                            currentOperand.equals(Operators.NEGATIVE))
+                            currentOperand.equals(String.valueOf(Operators.NEGATIVE)) ||
+                            expressionIsEquals)
                         return;
+
                     if (lastChar == '.')
                         expression = expression.substring(0, expression.length() - 1);
                     currentOperand = "";
                 }
                 // Handle clear all
-                else if (buttonText.equals("C")){
-                    currentOperand = "";
-                    lastChar = '\0';
-                    expression = "";
-                }
+                else if (buttonText.equals("C"))
+                    clear();
                 // Handle clear entry
                 else if (buttonText.equals("CE")){
                     if (currentOperand.isEmpty()) return;
                     expression = expression.substring(0, expression.lastIndexOf(currentOperand));
                     currentOperand = "";
-                    lastChar = expression.charAt(expression.length() - 1);
+                    try {
+                        lastChar = expression.charAt(expression.length() - 1);
+                    } catch (Exception ex){
+                        lastChar = '\0';
+                    }
                 }
                 // Handle equals
                 else if (buttonText.equals("=")){
-                    if (lastChar == '\0' || currentOperand.equals(Operators.NEGATIVE)) return;
-                    else if (lastChar == '.')
-                        expression = expression.substring(0, expression.length() - 1);
-                    if ((lastChar < '0' || lastChar > '9') && lastChar != ')') {
-                        Toast.makeText(MainActivity.this, "Invalid expression", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
+                    if (!expression.equals(currentOperand)) {
+                        // Count parentheses
+                        int left = 0, right = 0;
+                        for (char c : expression.toCharArray()) {
+                            if (c == '(') left++;
+                            else if (c == ')') right++;
+                        }
 
-                    try {
-                        expression = String.valueOf(Calculator.evaluateExpression(expression));
-                    } catch (ArithmeticException ex) {
-                        expression = "UNDEF";
-                        currentOperand = "";
-                        lastChar = '\0';
-                        Toast.makeText(MainActivity.this, "Cannot divide by 0", Toast.LENGTH_SHORT).show();
-                    }
+                        if (((lastChar < '0' || lastChar > '9') && lastChar != ')' && lastChar != '.') ||
+                                lastChar == '\0' || currentOperand.equals(String.valueOf(Operators.NEGATIVE)) ||
+                                left != right) {
+                            Toast.makeText(MainActivity.this, "Invalid expression", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
 
-                    if (expression.endsWith(".0"))
-                        expression = expression.substring(0, expression.length() - 2);
+                        try {
+                            expression = Calculator.evaluateExpression(expression);
+                            lastChar = expression.charAt(expression.length() - 1);
+                        } catch (ArithmeticException ex) {
+                            expression = "UNDEF";
+                            lastChar = '\0';
+                            Toast.makeText(MainActivity.this, "Cannot divide by 0", Toast.LENGTH_SHORT).show();
+                        }
+                    }
+                    else if (currentOperand.equals("-0"))
+                        expression = "0";
+
                     currentOperand = expression;
-                    lastChar = expression.charAt(expression.length() - 1);
+                    expressionIsEquals = true;
                 }
 
                 if (!buttonText.equals("=") && !buttonText.equals("C") && !buttonText.equals("CE")) {
@@ -139,10 +151,12 @@ public class MainActivity extends AppCompatActivity {
                 }
 
                 ((TextView) findViewById(R.id.input)).setText(expression);
-                HorizontalScrollView inputScroll = (HorizontalScrollView) findViewById(R.id.inputScroll);
-                inputScroll.setScrollX(inputScroll.getRight());
+                //HorizontalScrollView inputScroll = (HorizontalScrollView) findViewById(R.id.inputScroll);
+                //inputScroll.setScrollX(inputScroll.getRight());
             }
         };
+
+        ((TextView) findViewById(R.id.input)).setMovementMethod(new ScrollingMovementMethod());
 
         findViewById(R.id.zero).setOnClickListener(buttonListener);
         findViewById(R.id.one).setOnClickListener(buttonListener);
@@ -160,12 +174,19 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.minusBtn).setOnClickListener(buttonListener);
         findViewById(R.id.multBtn).setOnClickListener(buttonListener);
         findViewById(R.id.divBtn).setOnClickListener(buttonListener);
-        findViewById(R.id.rightParenthBtn).setOnClickListener(buttonListener);
+        findViewById(R.id.eqBtn).setOnClickListener(buttonListener);
 
         findViewById(R.id.leftParenthBtn).setOnClickListener(buttonListener);
         findViewById(R.id.rightParenthBtn).setOnClickListener(buttonListener);
 
         findViewById(R.id.clearBtn).setOnClickListener(buttonListener);
         findViewById(R.id.clearEntryBtn).setOnClickListener(buttonListener);
+    }
+
+    private void clear(){
+        expression = "";
+        lastChar = '\0';
+        currentOperand = "";
+        expressionIsEquals = false;
     }
 }
