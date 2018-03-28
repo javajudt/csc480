@@ -1,0 +1,11 @@
+Alexis Layne & Jordan Judt
+*Wildcards*
+CSC 480: Software Engineering
+Professor Ahyoung Lee
+System Request/Proposal
+
+System Request: Budgeteer Buddy Android App
+
+	We at A & J Applications are interested in expanding our clientelle by constructing an application aimed toward the busy, soon-to-be money conscious college student. To do this, we must develop the Budgeteer Buddy. Currently, there are a lot of budget and money saving apps, but how will the Budgeteer Buddy stack up to its competition? We intend to build an app with only the necessities to whip our target customers into penny pinching experts.To accomplish this feat, A & J Applications will strip away some of the over-the-top features of the traditional budgetting application.
+	First, this budget helper must be mobile in order to be persistent with its client and perform its duties as needed. This Android Application will be developed using Android Studio Software to make a "no frills" user interface with all the required functionality to get the job done and SQLite database backend to track our consumers' spending habits. Functionally, the application must be able to: create/modify/delete a budget or expense, be able to store multiple budgets and expenses, be able to take user input, update and access the database, output a graphical representation of the customer's spending habit and authenticate our user. There should be predetermined categories that all expenses will fall under to limit excessive, unnecessary spending. The application will also take in basic consumer information such as: income, frequency, and saving goal to personalize the experience. Additional functionality being considered include micro transactions and in-app advertisements. These functions are being considered in order to provide a learning environment for the consumer.
+	Overall, we project a large revenue from our proposed application and an even larger population of money savy college students.  
