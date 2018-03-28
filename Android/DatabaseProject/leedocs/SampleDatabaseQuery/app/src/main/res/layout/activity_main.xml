@@ -15,7 +15,7 @@
 			android:layout_height="wrap_content"
 			android:hint="Enter database name"
 			android:text="customer.db"
-			android:textSize="16dp"
+			android:textSize="16sp"
 			>
 		</EditText>
 		<Button
@@ -38,7 +38,7 @@
 			android:layout_height="match_parent"
 			android:background="#ff99ccee"
 			android:textColor="#ff0000ff"
-			android:textSize="14dp"
+			android:textSize="14sp"
 			>
 		</TextView>
 	</ScrollView>
